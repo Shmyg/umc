@@ -1,0 +1,298 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sqlca.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#define ORAERROR( Made_If_Errror ) \
+{if(sqlca.sqlcode) { \
+        printf("ORACLE ERROR!\n%.*s\n", sqlca.sqlerrm.sqlerrml, \
+		sqlca.sqlerrm.sqlerrmc); \
+        Made_If_Errror; \
+        exit(1); \
+}}
+
+#define MAX_LEN  1000
+
+int const STRING_LENGTH = 79;
+char * username = NULL, * passwd = NULL, * dbname = NULL, *filename;
+int customers[1000
+char const FILENAME[100] = "/home/shmyg/Work/bank/data/data.txt";
+char const DISCARD_FILENAME[100] = "/home/shmyg/Work/bank/data/discard.txt";
+FILE	*data_file_id, *discard_file_id;
+
+struct parsed_field_info_str
+{
+	char fields[4 + 4][MAX_LEN];
+} parsed_field_info;
+
+EXEC SQL
+	BEGIN DECLARE SECTION;
+
+	struct customer_data_struct
+	{
+		int customer_id;
+		char custcode[25];
+		char dn_num[10];
+	} customer_data_array[MAX_LEN];
+
+	long number_of_rows_to_fetch = MAX_LEN;
+
+EXEC SQL
+	END DECLARE SECTION;
+
+
+vector<customer_data_struct> customer_data;
+
+
+void select_db_data() {
+
+	int i;
+
+	long rowsAlreadyFetched = 0;
+	bool allRowsFetched = false;
+
+	EXEC SQL
+		DECLARE customer_cur CURSOR
+		FOR
+		SELECT	cu.customer_id,
+			cu.custcode,
+			dn.dn_num
+		FROM	contract_all		ca,
+			contr_services_cap	cs,
+			directory_number	dn,
+			customer_all		cu
+		WHERE	cu.customer_id = common.umc_util.find_paymntresp( ca.customer_id )
+		AND	dn.dn_id = cs.dn_id
+		AND	cs.co_id = ca.co_id
+		AND	cs.cs_deactiv_date IS NOT NULL;
+
+	EXEC SQL
+		OPEN customer_cur;
+
+	EXEC SQL
+		FOR	:number_of_rows_to_fetch
+		FETCH	customer_cur
+		INTO	customer_data_array;
+
+	for ( i = 1; i < MAX_LEN; i++ )
+	{
+		customer_data.insert(customer_data.end(), customer_data_array[i]);
+	}
+
+}
+
+int process_dn_num ( const char * str ) {
+	return 0;
+}
+
+int process_custcode (const char * str) {
+
+	char custcode[24] = {0}, delimiter = '.', first_symbol;
+	int i = 0;
+	int j = 0;
+	int levelNumber = 0;
+	int len = strlen( str );
+	int ret_code = 0;
+
+	struct custcode_levels_struct
+	{
+		char level[5][8];
+	} custcode_levels;
+
+	/* Removing blanks and other possible trash from custcode */
+	for ( i; i <= len ; i++ )
+	{
+		if ( ( isdigit( str[i] ) ) || ( str[i] == '.' ) )
+		{
+			custcode[j] = str[i];
+			j++;
+		}
+	}
+
+	/* Checking custcode */
+	i = 0;
+	j = 0;
+	len = strlen( custcode );
+
+	if ( len == 0 ) {
+		ret_code = 1;
+	} else {
+		ret_code = 0;
+		/*
+		while (1)
+		{
+			while( ( custcode[i] != delimiter ) || ( custcode[i] == 0 ) )
+			{
+				custcode_levels.level[levelNumber][j] = custcode[i];
+				i++;
+				j++;
+
+				if( i >= len )
+					break;
+			}
+			j = 0;
+			++levelNumber;
+			++i;
+
+			if( i >= len)
+				break;
+		}
+
+		/* Checking fields retreived 
+		if ( strlen(custcode_levels.level[0] ) != 1 ) {
+			ret_code = 2;
+		} else {
+			/* Checking if this is 'plain' customer 
+			if ( ( custcode_levels.level[0] ) == "1" && ( strlen( custcode_levels.level[1] ) != 8 ) )
+			{
+				ret_code = 3;
+			} else {
+				/*if ( ( custcode_levels.level[0] ) = 2 &&
+					( strlen( custcode_levels.level[1] != 2 ) &&
+					( strlen( custcode_levels.level[2] != 2 ) &&
+					( strlen( custcode_levels.level[3] != 2 ) &&
+				
+				ret_code = 0;
+			}
+		}*/
+	}
+	return	ret_code;
+}
+
+void do_error (const char * str) {
+	fprintf (discard_file_id, "%s\n", str );
+};
+
+/* Function to check if line consists only of '-' */
+int is_string_blank(const char * str)
+{
+    int len = strlen(str);
+    int i = 0;
+    int blank = 1;
+
+    for( i; i < len; ++i )
+    {
+        if(str[i] != '-')
+        {
+            blank = 0;
+            break;
+        }
+    }
+
+    return blank;
+}
+
+/* Function to split a line to fields */
+int parse_string(const char * str)
+{
+    int len = strlen(str), i = 0, ret_code;
+
+    char delimiters[] = {'|', '|', '|', '>', '~', '~', '~', '~'};
+
+    int j = 0;
+    int currentFieldNum = 0;
+    memset(parsed_field_info.fields, 0 , sizeof(parsed_field_info.fields));
+    
+    while(1)
+    {
+            while(str[i] != delimiters[currentFieldNum])
+            {
+                parsed_field_info.fields[currentFieldNum][j] = str[i];
+                ++j;
+                ++i;
+
+                if(i >= len)
+                {
+					/* We don't have closing delimiter */
+					if (currentFieldNum == 8)
+					{
+						break;
+					}
+					else {
+	                    do_error( str );
+		                break;
+					}
+                }
+            }
+
+            j = 0;
+            ++currentFieldNum;
+            ++i;
+
+            if( i >= len)
+                break;
+    }
+
+	/* Checking field_values */
+	ret_code = process_custcode( parsed_field_info.fields[5] );
+	if ( ret_code != 0) /* Custcode is not a valid one */
+	{
+		/* Trying to process phone number */
+		ret_code = process_dn_num( parsed_field_info.fields[7] );
+		if ( ret_code != 0) /* We couldn't parse anything */
+		{
+			do_error( str ); /* Last resort */
+		}
+	}
+}
+
+/* Function to make file 'plain' - one line - one customer payment */
+void align_data () {
+
+	char a_string[STRING_LENGTH];
+	int	blank, 	currentPos = 0;
+	char a_whole_string[STRING_LENGTH*10] = {0};
+
+	blank = 0;
+	data_file_id = fopen( FILENAME, "r" );
+	discard_file_id = fopen( DISCARD_FILENAME, "w");
+
+	/* Reading file line by line */
+	while (fgets (a_string, STRING_LENGTH, data_file_id))
+	{
+		/* Checking if line is a separator (consists only of '-') */
+		blank = is_string_blank( a_string );
+
+		if ( blank != 1)	/* Data line*/
+		{
+			strcpy( &a_whole_string[currentPos], a_string );
+			currentPos += (strlen(a_string) - 1);
+		}
+		else	/* Separator */
+		{
+			parse_string(a_whole_string);
+			memset(a_whole_string, 0, sizeof(a_whole_string));
+			currentPos = 0;
+		}
+	}
+
+	fclose( data_file_id );
+	fclose( discard_file_id );
+}
+
+int main(int argc, char *argv[]) {
+
+	username = getenv("DB_USER");
+	passwd = getenv("DB_PASS");
+	dbname = getenv("DB_NAME");
+	filename = "/home/shmyg/Work/bank/data/data.txt";
+
+	/* Checking parameters */
+	if (username == NULL || passwd == NULL || dbname == NULL)
+	{
+		printf( "Enter connection string!\n" );
+		exit(1);
+	}
+
+	EXEC SQL
+		CONNECT	:username
+		IDENTIFIED BY :passwd
+		USING	:dbname;
+
+	select_db_data();
+	align_data();
+
+	return 0;
+}

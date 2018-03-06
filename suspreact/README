@@ -1,0 +1,19 @@
+Suspension/reactivation project
+Contents:
+FORMS/debtors.fmb - interface for manual search/filtering of debtors
+FORMS/debtors_menu.mmb - menu for main interface
+FORMS/debtors1.fmb - not used for now
+SQL/aft_ins_on_cust_paid_trg.sql - trigger for updating CUSTOMERS_PAID
+SQL/bank1.ctl - control file for SQL*Loader to load file with payments
+(format 'entry date|custcode|amount')
+SQL/bank1.ctl - control file for SQL*Loader to load file with payments
+(format 'entry date|phone_number|amount') 
+SQL/dbsetup.sql - schema creation script
+SQL/debtors.pkb - body of DEBTORS package containing all the logics
+SQL/debtors.pks - specs of DEBTORS package
+SQL/react.sql - script for reactivation
+SQL/suspend.sql - script for suspension
+proc/ - not used for now (maybe used in future for file parsing)
+shell/bank.sh - shell script for parsing bank file and loading data
+into DB
+Author: Shmyg (shmyg@umc.com.ua)

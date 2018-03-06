@@ -1,0 +1,6 @@
+CREATE	OR REPLACE
+TYPE	&owner..parameters_tab
+AS	TABLE
+OF	NUMBER
+/
+SHOW ERROR
